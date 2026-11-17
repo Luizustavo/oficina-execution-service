@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oficina-execution-service
+  namespace: execution
+  labels:
+    app: oficina-execution-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: oficina-execution-service
+  template:
+    metadata:
+      labels:
+        app: oficina-execution-service
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: oficina-execution-service
+          image: REPLACE_WITH_ECR_IMAGE_URI:latest
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - configMapRef:
+                name: oficina-execution-service-config
+            - secretRef:
+                name: oficina-execution-service-secret
+          env:
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: "k8s.namespace.name=execution,k8s.deployment.name=oficina-execution-service"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "192Mi"
+              ephemeral-storage: "64Mi"
+            limits:
+              cpu: "500m"
+              memory: "384Mi"
+              ephemeral-storage: "256Mi"
+          readinessProbe:
+            httpGet:
+              path: /api/execution/health/ready
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /api/execution/health/live
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            failureThreshold: 3
