@@ -17,4 +17,7 @@ export abstract class IExecutionJobRepository {
   abstract findById(id: string): Promise<ExecutionJobEntity | null>;
 
   abstract findByOrderId(orderId: string): Promise<ExecutionJobEntity | null>;
+
+  /** Jobs ainda em andamento: mais urgente primeiro, depois o mais antigo. */
+  abstract findActive(limit: number): Promise<ExecutionJobEntity[]>;
 }

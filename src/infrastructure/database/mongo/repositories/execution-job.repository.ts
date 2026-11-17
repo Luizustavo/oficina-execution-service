@@ -3,7 +3,10 @@ import {
   ExecutionJobRecord,
 } from '@infrastructure/database/mongo/schemas/execution-job.schema';
 import { IExecutionJobRepository } from '@domain/repositories/execution-job.repository.interface';
-import { ExecutionJobEntity } from '@domain/entities/execution-job/execution-job.entity';
+import {
+  ACTIVE_STATUSES,
+  ExecutionJobEntity,
+} from '@domain/entities/execution-job/execution-job.entity';
 import { ConcurrentModificationException } from '@shared/exceptions/domain.exceptions';
 import { MongoExecutionJobMapper } from '../mappers/mongo-execution-job.mapper';
 import { OutgoingMessage } from '@domain/messaging/saga-message';
@@ -87,5 +90,14 @@ export class ExecutionJobRepository
       .findOne({ orderId })
       .lean<ExecutionJobRecord>();
     return record ? MongoExecutionJobMapper.toEntity(record) : null;
+  }
+
+  async findActive(limit: number): Promise<ExecutionJobEntity[]> {
+    const records = await this.model
+      .find({ status: { $in: ACTIVE_STATUSES } })
+      .sort({ priorityRank: 1, createdAt: 1 })
+      .limit(limit)
+      .lean<ExecutionJobRecord[]>();
+    return records.map((record) => MongoExecutionJobMapper.toEntity(record));
   }
 }
