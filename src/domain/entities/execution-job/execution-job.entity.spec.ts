@@ -55,6 +55,7 @@ describe('ExecutionJobEntity', () => {
         },
       ]);
       expect(job.mechanicId).toBeUndefined();
+      expect(job.version).toBe(0);
       expect(job.startedAt).toBeUndefined();
       expect(job.durationSeconds).toBeUndefined();
     });
@@ -245,6 +246,7 @@ describe('ExecutionJobEntity', () => {
         failureReason: job.failureReason,
         failureDetail: job.failureDetail,
         timeline: job.timeline,
+        version: job.version,
         createdAt: job.createdAt,
         updatedAt: job.updatedAt,
       },

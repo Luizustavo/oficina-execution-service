@@ -36,6 +36,7 @@ export interface ExecutionJobProps {
   failureReason?: ExecutionFailureReason;
   failureDetail?: string;
   timeline: TimelineEntry[];
+  version: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -79,6 +80,7 @@ export class ExecutionJobEntity {
         timeline: [
           { status: ExecutionJobStatus.QUEUED, at: now, by: SYSTEM_ACTOR },
         ],
+        version: 0,
         createdAt: now,
         updatedAt: now,
       },
@@ -259,6 +261,9 @@ export class ExecutionJobEntity {
   }
   get timeline(): TimelineEntry[] {
     return this.props.timeline;
+  }
+  get version(): number {
+    return this.props.version;
   }
   get createdAt(): Date {
     return this.props.createdAt;
