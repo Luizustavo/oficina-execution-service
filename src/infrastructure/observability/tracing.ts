@@ -61,6 +61,10 @@ export function startTracing(): void {
     instrumentations: [
       getNodeAutoInstrumentations({
         '@opentelemetry/instrumentation-fs': { enabled: false },
+        // Desligada: ela cria o span de publicação a partir do contexto ativo e
+        // sobrescreve o traceparent gravado no outbox. Os spans de publicação e
+        // consumo vêm de infrastructure/messaging/message-tracing.ts.
+        '@opentelemetry/instrumentation-amqplib': { enabled: false },
         '@opentelemetry/instrumentation-pino': { enabled: true },
         '@opentelemetry/instrumentation-http': {
           ignoreIncomingRequestHook: (request) =>

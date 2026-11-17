@@ -13,6 +13,8 @@ import { IMessagePublisher } from '@domain/services/message-publisher.interface'
 import { rabbitmqConfig } from '@infrastructure/config/rabbitmq.config';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { suppressTracing } from '@opentelemetry/core';
+import { context } from '@opentelemetry/api';
 
 type JobWithEvents = Pick<ExecutionJobRecord, '_id' | 'pendingEvents'>;
 
@@ -54,7 +56,10 @@ export class OutboxRelayService
     if (this.running) return;
     this.running = true;
     try {
-      await this.publishPending();
+      // A rodada consulta o banco a cada segundo: sem isto, cada uma vira um trace vazio.
+      await context.with(suppressTracing(context.active()), () =>
+        this.publishPending(),
+      );
     } catch (error) {
       this.logger.error(`Outbox relay round failed: ${describe(error)}`);
     } finally {
