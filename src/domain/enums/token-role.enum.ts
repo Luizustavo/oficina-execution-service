@@ -1,0 +1,6 @@
+export enum TokenRole {
+  ADMIN = 'ADMIN',
+  MECHANIC = 'MECHANIC',
+  ATTENDANT = 'ATTENDANT',
+  CUSTOMER = 'CUSTOMER',
+}

@@ -38,6 +38,25 @@ Todas com o prefixo `/api/execution`, que o Traefik usa para encaminhar ao servi
 |---|---|
 | `GET /api/execution/health/live` e `/ready` | Probes do Kubernetes (públicas) |
 | `GET /api/execution/docs` | Swagger |
+| `GET /api/execution/queue` | Jobs em andamento: mais urgente primeiro, depois o mais antigo |
+| `GET /api/execution/jobs/:id` | Job com a linha do tempo |
+| `PATCH /api/execution/jobs/:id/start-diagnosis` | `QUEUED → DIAGNOSING`, publica `execution.job.started` |
+| `PATCH /api/execution/jobs/:id/start-repair` | `DIAGNOSING → REPAIRING`, com as notas do diagnóstico (opcional). Não publica evento |
+| `PATCH /api/execution/jobs/:id/finish` | `REPAIRING → DONE`, publica `execution.job.completed` com a duração |
+| `PATCH /api/execution/jobs/:id/fail` | Qualquer status ativo → `FAILED`, com motivo (`PART_UNAVAILABLE`, `TECHNICAL_ISSUE`, `CUSTOMER_REQUEST`, `OTHER`) e detalhe. Publica `execution.job.failed`, e a saga estorna o cliente |
+
+As rotas da fila exigem token da equipe com papel `MECHANIC` ou `ADMIN` (o mesmo JWT do OS Service). Uma ação fora de ordem responde 422; duas mudanças simultâneas no mesmo job, 409.
+
+## Mensagens
+
+Consome a fila `execution.commands` (comandos do OS Service) e publica em `saga.events`:
+
+| Comando recebido | Resposta publicada |
+|---|---|
+| `execution.job.enqueue` | `execution.job.queued`. Repetido para a mesma OS: confirmado sem criar outro job. Payload inválido: direto para a DLQ |
+| `execution.job.cancel` | `execution.job.canceled`. Repetido, ou com o job já encerrado, confirma de novo sem mudar o job. Se o job ainda não existe (o `enqueue` está em retentativa), o comando volta para retentativa |
+
+Não há tabela de mensagens processadas: cada comando é idempotente pelo estado do job (ADR-012).
 
 ## Job de execução
 

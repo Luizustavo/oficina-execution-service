@@ -52,7 +52,7 @@ export type CreateExecutionJobProps = Pick<
   | 'parts'
 >;
 
-const ACTIVE_STATUSES = [
+export const ACTIVE_STATUSES = [
   ExecutionJobStatus.QUEUED,
   ExecutionJobStatus.DIAGNOSING,
   ExecutionJobStatus.REPAIRING,
@@ -150,6 +150,14 @@ export class ExecutionJobEntity {
 
   get completedAt(): Date | undefined {
     return this.timelineAt(ExecutionJobStatus.DONE);
+  }
+
+  get canceledAt(): Date | undefined {
+    return this.timelineAt(ExecutionJobStatus.CANCELED);
+  }
+
+  get failedAt(): Date | undefined {
+    return this.timelineAt(ExecutionJobStatus.FAILED);
   }
 
   get durationSeconds(): number | undefined {
