@@ -2,12 +2,14 @@ import { IExecutionJobRepository } from '@domain/repositories/execution-job.repo
 import { ExecutionJobEvents } from '@application/execution-job/execution-job-events';
 import { NotFoundException } from '@shared/exceptions/domain.exceptions';
 import { SagaEnvelope } from '@domain/messaging/saga-message';
+import { ExecutionMetrics } from '@infrastructure/observability/execution.metrics';
 import { Injectable, Logger } from '@nestjs/common';
 
 @Injectable()
 export class CancelExecutionJobUseCase {
   constructor(
     private readonly jobs: IExecutionJobRepository,
+    private readonly metrics: ExecutionMetrics,
     private readonly logger: Logger,
   ) {}
 
@@ -27,12 +29,16 @@ export class CancelExecutionJobUseCase {
       throw new NotFoundException('ExecutionJob for order', command.orderId);
     }
 
-    if (!job.cancel(reason)) {
+    const canceled = job.cancel(reason);
+    if (!canceled) {
       this.logger.warn(
         `Execution job ${job.id} is already ${job.status}; confirming the cancellation anyway`,
       );
     }
     await this.jobs.save(job, [ExecutionJobEvents.canceled(command, job)]);
+    if (canceled) {
+      this.metrics.recordFinished(job.status);
+    }
     this.logger.log(`Execution job ${job.id} is ${job.status}`);
   }
 }

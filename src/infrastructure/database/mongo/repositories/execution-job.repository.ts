@@ -12,6 +12,7 @@ import { MongoExecutionJobMapper } from '../mappers/mongo-execution-job.mapper';
 import { OutgoingMessage } from '@domain/messaging/saga-message';
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
+import { ExecutionJobStatus } from '@domain/enums/execution-job.enum';
 import { Model, mongo } from 'mongoose';
 
 const DUPLICATE_KEY = 11000;
@@ -99,5 +100,18 @@ export class ExecutionJobRepository
       .limit(limit)
       .lean<ExecutionJobRecord[]>();
     return records.map((record) => MongoExecutionJobMapper.toEntity(record));
+  }
+
+  async countActiveByStatus(): Promise<
+    Partial<Record<ExecutionJobStatus, number>>
+  > {
+    const groups = await this.model.aggregate<{
+      _id: ExecutionJobStatus;
+      count: number;
+    }>([
+      { $match: { status: { $in: ACTIVE_STATUSES } } },
+      { $group: { _id: '$status', count: { $sum: 1 } } },
+    ]);
+    return Object.fromEntries(groups.map((group) => [group._id, group.count]));
   }
 }

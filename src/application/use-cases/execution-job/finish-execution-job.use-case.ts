@@ -3,12 +3,14 @@ import { ExecutionJobResponseDto } from '@application/dtos/response/execution-jo
 import { ExecutionJobEvents } from '@application/execution-job/execution-job-events';
 import { findJobOrFail } from '@application/execution-job/find-job-or-fail';
 import { ExecutionJobMapper } from '@application/mappers/execution-job.mapper';
+import { ExecutionMetrics } from '@infrastructure/observability/execution.metrics';
 import { Injectable, Logger } from '@nestjs/common';
 
 @Injectable()
 export class FinishExecutionJobUseCase {
   constructor(
     private readonly jobs: IExecutionJobRepository,
+    private readonly metrics: ExecutionMetrics,
     private readonly logger: Logger,
   ) {}
 
@@ -22,6 +24,7 @@ export class FinishExecutionJobUseCase {
 
     job.finish(mechanicId, note);
     await this.jobs.save(job, [ExecutionJobEvents.completed(job)]);
+    this.metrics.recordFinished(job.status, job.durationSeconds);
 
     this.logger.log(`Execution job ${id} is done in ${job.durationSeconds}s`);
     const response: ExecutionJobResponseDto =

@@ -19,6 +19,7 @@ import { FailExecutionJobUseCase } from './fail-execution-job.use-case';
 import { GetExecutionJobUseCase } from './get-execution-job.use-case';
 import { StartDiagnosisUseCase } from './start-diagnosis.use-case';
 import { StartRepairUseCase } from './start-repair.use-case';
+import { ExecutionMetrics } from '@infrastructure/observability/execution.metrics';
 import { Logger } from '@nestjs/common';
 
 const MECHANIC = 'mechanic-1';
@@ -69,14 +70,19 @@ describe('Execution job use cases', () => {
     log: jest.fn(),
     warn: jest.fn(),
   } as unknown as Logger;
+  const metrics = {
+    recordFinished: jest.fn(),
+  } as unknown as jest.Mocked<ExecutionMetrics>;
 
   beforeEach(() => {
+    jest.mocked(metrics.recordFinished).mockClear();
     jobs = {
       create: jest.fn().mockResolvedValue(true),
       save: jest.fn().mockResolvedValue(undefined),
       findById: jest.fn().mockResolvedValue(null),
       findByOrderId: jest.fn().mockResolvedValue(null),
       findActive: jest.fn().mockResolvedValue([]),
+      countActiveByStatus: jest.fn().mockResolvedValue({}),
     };
   });
 
@@ -136,7 +142,7 @@ describe('Execution job use cases', () => {
   });
 
   describe('CancelExecutionJobUseCase', () => {
-    const useCase = () => new CancelExecutionJobUseCase(jobs, logger);
+    const useCase = () => new CancelExecutionJobUseCase(jobs, metrics, logger);
     const cancelCommand = (reason?: string) =>
       command('execution.job.cancel', reason ? { reason } : {});
 
@@ -149,6 +155,9 @@ describe('Execution job use cases', () => {
       expect(job.status).toBe(ExecutionJobStatus.CANCELED);
       expect(job.timeline[job.timeline.length - 1].note).toBe('MANUAL_CANCEL');
       expect(savedEvents()).toEqual(['execution.job.canceled']);
+      expect(metrics.recordFinished).toHaveBeenCalledWith(
+        ExecutionJobStatus.CANCELED,
+      );
     });
 
     it('confirms again without changing a job that already ended', async () => {
@@ -162,6 +171,7 @@ describe('Execution job use cases', () => {
 
       expect(jobs.save.mock.calls[0][0].status).toBe(ExecutionJobStatus.DONE);
       expect(savedEvents()).toEqual(['execution.job.canceled']);
+      expect(metrics.recordFinished).not.toHaveBeenCalled();
     });
 
     it('retries while the job does not exist yet', async () => {
@@ -241,16 +251,25 @@ describe('Execution job use cases', () => {
 
       const response = await new FinishExecutionJobUseCase(
         jobs,
+        metrics,
         logger,
       ).execute('job-1', MECHANIC, 'Teste de rodagem ok');
 
       expect(response.status).toBe(ExecutionJobStatus.DONE);
       expect(response.durationSeconds).toEqual(expect.any(Number));
       expect(savedEvents()).toEqual(['execution.job.completed']);
+      expect(metrics.recordFinished).toHaveBeenCalledWith(
+        ExecutionJobStatus.DONE,
+        response.durationSeconds,
+      );
     });
 
     it('records a failure and publishes failed', async () => {
-      const response = await new FailExecutionJobUseCase(jobs, logger).execute(
+      const response = await new FailExecutionJobUseCase(
+        jobs,
+        metrics,
+        logger,
+      ).execute(
         'job-1',
         MECHANIC,
         ExecutionFailureReason.PART_UNAVAILABLE,
@@ -263,11 +282,17 @@ describe('Execution job use cases', () => {
         failureDetail: 'Sem filtro no fornecedor',
       });
       expect(savedEvents()).toEqual(['execution.job.failed']);
+      expect(metrics.recordFinished).toHaveBeenCalledWith(
+        ExecutionJobStatus.FAILED,
+      );
     });
 
     it('refuses an action out of order and saves nothing', async () => {
       await expect(
-        new FinishExecutionJobUseCase(jobs, logger).execute('job-1', MECHANIC),
+        new FinishExecutionJobUseCase(jobs, metrics, logger).execute(
+          'job-1',
+          MECHANIC,
+        ),
       ).rejects.toThrow(InvalidStatusTransitionException);
       expect(jobs.save).not.toHaveBeenCalled();
     });

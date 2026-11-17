@@ -4,12 +4,14 @@ import { ExecutionJobEvents } from '@application/execution-job/execution-job-eve
 import { findJobOrFail } from '@application/execution-job/find-job-or-fail';
 import { ExecutionJobMapper } from '@application/mappers/execution-job.mapper';
 import { ExecutionFailureReason } from '@domain/enums/execution-job.enum';
+import { ExecutionMetrics } from '@infrastructure/observability/execution.metrics';
 import { Injectable, Logger } from '@nestjs/common';
 
 @Injectable()
 export class FailExecutionJobUseCase {
   constructor(
     private readonly jobs: IExecutionJobRepository,
+    private readonly metrics: ExecutionMetrics,
     private readonly logger: Logger,
   ) {}
 
@@ -26,6 +28,7 @@ export class FailExecutionJobUseCase {
 
     job.fail(mechanicId, reason, detail);
     await this.jobs.save(job, [ExecutionJobEvents.failed(job)]);
+    this.metrics.recordFinished(job.status);
 
     this.logger.log(
       `Execution job ${id} failed (${reason}); the saga will compensate`,

@@ -8,12 +8,16 @@ import { StartDiagnosisUseCase } from '@application/use-cases/execution-job/star
 import { ExecutionJobsController } from '@infrastructure/presentation/controllers/execution-jobs.controller';
 import { StartRepairUseCase } from '@application/use-cases/execution-job/start-repair.use-case';
 import { ExecutionCommandHandlers } from '@infrastructure/messaging/execution-command-handlers';
+import { ExecutionQueueGauge } from '@infrastructure/observability/execution-queue.gauge';
+import { ExecutionMetrics } from '@infrastructure/observability/execution.metrics';
 import { Logger, Module } from '@nestjs/common';
 
 @Module({
   controllers: [ExecutionJobsController],
   providers: [
     Logger,
+    ExecutionMetrics,
+    ExecutionQueueGauge,
     EnqueueExecutionJobUseCase,
     CancelExecutionJobUseCase,
     ListExecutionQueueUseCase,

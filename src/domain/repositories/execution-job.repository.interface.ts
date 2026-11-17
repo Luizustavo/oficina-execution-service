@@ -1,3 +1,4 @@
+import { ExecutionJobStatus } from '@domain/enums/execution-job.enum';
 import { ExecutionJobEntity } from '@domain/entities/execution-job/execution-job.entity';
 import { OutgoingMessage } from '@domain/messaging/saga-message';
 
@@ -20,4 +21,8 @@ export abstract class IExecutionJobRepository {
 
   /** Jobs ainda em andamento: mais urgente primeiro, depois o mais antigo. */
   abstract findActive(limit: number): Promise<ExecutionJobEntity[]>;
+
+  abstract countActiveByStatus(): Promise<
+    Partial<Record<ExecutionJobStatus, number>>
+  >;
 }
