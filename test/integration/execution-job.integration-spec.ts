@@ -172,6 +172,25 @@ describe('Execution Service (integração)', () => {
       ]);
     });
 
+    it('conta os jobs em andamento por status', async () => {
+      const queued = newJob();
+      const diagnosing = newJob();
+      await repository.create(queued, []);
+      await repository.create(diagnosing, []);
+      const loaded = (await repository.findById(diagnosing.id))!;
+      loaded.startDiagnosis('mechanic-1');
+      await repository.save(loaded, []);
+      const canceled = (await repository.findById(queued.id))!;
+      canceled.cancel('MANUAL_CANCEL');
+      await repository.save(canceled, []);
+      await repository.create(newJob(), []);
+
+      expect(await repository.countActiveByStatus()).toEqual({
+        QUEUED: 1,
+        DIAGNOSING: 1,
+      });
+    });
+
     it('recusa gravar por cima de uma alteração concorrente', async () => {
       const job = newJob();
       await repository.create(job, []);

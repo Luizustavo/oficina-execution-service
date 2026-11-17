@@ -19,6 +19,7 @@ import { OutboxRelayService } from '@infrastructure/messaging/outbox-relay.servi
 import { SagaEnvelope, SagaExchange } from '@domain/messaging/saga-message';
 import { Connection, createConnection, Model } from 'mongoose';
 import { randomUUID } from 'node:crypto';
+import { ExecutionMetrics } from '@infrastructure/observability/execution.metrics';
 import { Logger } from '@nestjs/common';
 import { connect } from 'amqplib';
 
@@ -58,7 +59,7 @@ describe('Comandos do Execution (integração)', () => {
     new ExecutionCommandHandlers(
       registry,
       new EnqueueExecutionJobUseCase(repository, logger),
-      new CancelExecutionJobUseCase(repository, logger),
+      new CancelExecutionJobUseCase(repository, new ExecutionMetrics(), logger),
     ).onModuleInit();
     consumer = new ExecutionCommandsConsumer(connection, publisher, registry);
 
@@ -222,10 +223,11 @@ describe('Comandos do Execution (integração)', () => {
       MECHANIC,
       'Junta do cárter vazando',
     );
-    await new FinishExecutionJobUseCase(repository, logger).execute(
-      id,
-      MECHANIC,
-    );
+    await new FinishExecutionJobUseCase(
+      repository,
+      new ExecutionMetrics(),
+      logger,
+    ).execute(id, MECHANIC);
 
     const stored = await model.findById(id).lean<ExecutionJobRecord>();
     expect(stored?.timeline).toHaveLength(4);
