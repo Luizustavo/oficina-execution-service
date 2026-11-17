@@ -96,11 +96,24 @@ jobs:
         with:
           version: 'latest'
 
+      - name: Check secrets applied by hand
+        run: |
+          kubectl get secret mongodb-credentials oficina-execution-service-secret -n "${K8S_NAMESPACE}" > /dev/null || {
+            echo "::error::Aplique k8s/mongodb-credentials.yaml e k8s/secret.yaml antes do deploy (ver k8s/README.md)."
+            exit 1
+          }
+
+      - name: Deploy MongoDB
+        run: |
+          set -euo pipefail
+          kubectl apply -f k8s/mongodb.yaml
+          kubectl rollout status statefulset/mongodb -n "${K8S_NAMESPACE}" --timeout=240s
+
       - name: Deploy application manifests
         run: |
           set -euo pipefail
           kubectl apply -f k8s/configmap.yaml
-          sed "s#REPLACE_WITH_ECR_IMAGE_URI:latest#${IMAGE}#" k8s/deployment.yaml | kubectl apply -f -
+          sed "s#REPLACE_WITH_ECR_IMAGE_URI:REPLACE_WITH_GIT_SHA#${IMAGE}#" k8s/deployment.yaml | kubectl apply -f -
           for f in service ingress hpa; do
             if [ -f "k8s/${f}.yaml" ]; then kubectl apply -f "k8s/${f}.yaml"; fi
           done

@@ -39,3 +39,10 @@ export class InvalidMessageException extends DomainException {
     this.name = 'InvalidMessageException';
   }
 }
+
+export class ConcurrentModificationException extends ConflictException {
+  constructor(entity: string, id: string) {
+    super(`${entity} "${id}" was changed by another request, try again`);
+    this.name = 'ConcurrentModificationException';
+  }
+}

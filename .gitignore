@@ -30,3 +30,4 @@ Thumbs.db
 k8s/secret.yaml
 
 
+k8s/mongodb-credentials.yaml

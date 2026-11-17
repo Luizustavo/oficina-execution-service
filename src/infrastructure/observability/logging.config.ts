@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import type { Params } from 'nestjs-pino';
-import type { IncomingMessage, ServerResponse } from 'http';
+import type { IncomingMessage, ServerResponse } from 'node:http';
 
 const HEALTH_PATH = '/api/execution/health';
 

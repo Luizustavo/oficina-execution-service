@@ -18,7 +18,7 @@ spec:
       automountServiceAccountToken: false
       containers:
         - name: oficina-execution-service
-          image: REPLACE_WITH_ECR_IMAGE_URI:latest
+          image: REPLACE_WITH_ECR_IMAGE_URI:REPLACE_WITH_GIT_SHA
           ports:
             - containerPort: 3000
           envFrom:
@@ -27,6 +27,13 @@ spec:
             - secretRef:
                 name: oficina-execution-service-secret
           env:
+            - name: MONGODB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-credentials
+                  key: executionPassword
+            - name: MONGODB_URL
+              value: "mongodb://execution_user:$(MONGODB_PASSWORD)@mongodb.execution.svc.cluster.local:27017/execution_db?authSource=execution_db"
             - name: OTEL_RESOURCE_ATTRIBUTES
               value: "k8s.namespace.name=execution,k8s.deployment.name=oficina-execution-service"
           resources:
