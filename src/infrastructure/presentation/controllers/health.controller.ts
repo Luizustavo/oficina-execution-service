@@ -1,7 +1,7 @@
 import { Public } from '@infrastructure/presentation/decorators/public.decorator';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { InjectConnection } from '@nestjs/mongoose';
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, ServiceUnavailableException } from '@nestjs/common';
 import { Connection } from 'mongoose';
 
 @ApiTags('health')
@@ -19,7 +19,11 @@ export class HealthController {
   @Get('ready')
   @ApiOperation({ summary: 'Readiness probe: MongoDB reachable' })
   async ready() {
-    await this.connection.db?.admin().ping();
+    try {
+      await this.connection.db?.admin().ping();
+    } catch {
+      throw new ServiceUnavailableException('MongoDB unreachable');
+    }
     return { status: 'ok' };
   }
 }
