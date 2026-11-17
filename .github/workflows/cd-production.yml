@@ -113,7 +113,7 @@ jobs:
         run: |
           set -euo pipefail
           kubectl apply -f k8s/configmap.yaml
-          sed "s#REPLACE_WITH_ECR_IMAGE_URI:latest#${IMAGE}#" k8s/deployment.yaml | kubectl apply -f -
+          sed "s#REPLACE_WITH_ECR_IMAGE_URI:REPLACE_WITH_GIT_SHA#${IMAGE}#" k8s/deployment.yaml | kubectl apply -f -
           for f in service ingress hpa; do
             if [ -f "k8s/${f}.yaml" ]; then kubectl apply -f "k8s/${f}.yaml"; fi
           done

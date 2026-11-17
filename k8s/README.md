@@ -7,7 +7,7 @@
 | `ingress.yaml` | O Traefik encaminha `/api/execution` para cá |
 | `hpa.yaml` | Escala de 1 a 2 réplicas por CPU e memória |
 | `configmap.yaml` | Configuração sem segredo |
-| `secret.example.yaml` | Modelo do Secret do serviço: JWT, MongoDB, RabbitMQ, New Relic |
+| `secret.example.yaml` | Modelo do Secret do serviço: JWT, RabbitMQ, New Relic |
 | `mongodb.yaml` | MongoDB 8.0 do Execution (cache de 256 MB, 2 Gi de disco), só dentro do cluster, e o script que cria o `execution_user` |
 | `mongodb-credentials.example.yaml` | Modelo do Secret do MongoDB: usuário root e senha do `execution_user` |
 
@@ -21,7 +21,7 @@ cp k8s/secret.example.yaml k8s/secret.yaml                             # preench
 kubectl apply -f k8s/mongodb-credentials.yaml -f k8s/secret.yaml
 ```
 
-A senha do `execution_user` aparece em dois lugares e precisa ser a mesma: `executionPassword` no `mongodb-credentials.yaml` e dentro do `MONGODB_URL` do `secret.yaml`.
+A senha do `execution_user` fica só no `mongodb-credentials.yaml` (`executionPassword`, apenas letras e números): o `deployment.yaml` lê essa chave e monta o `MONGODB_URL` do serviço com ela. O serviço não recebe a senha do root.
 
 O CD faz o resto, nesta ordem: MongoDB (espera ficar pronto), ConfigMap, Deployment, Service, Ingress e HPA.
 

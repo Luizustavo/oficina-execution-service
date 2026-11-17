@@ -36,21 +36,23 @@ export async function assertConsumerQueue(
       'x-dead-letter-routing-key': queue,
     },
   });
-  for (const key of bindingKeys) {
-    await channel.bindQueue(queue, exchange, key);
-  }
+  await Promise.all(
+    bindingKeys.map((key) => channel.bindQueue(queue, exchange, key)),
+  );
 
-  for (const [index, ttl] of RETRY_DELAYS_MS.entries()) {
-    await channel.assertQueue(retryQueueName(queue, index + 1), {
-      durable: true,
-      arguments: {
-        'x-queue-type': 'quorum',
-        'x-message-ttl': ttl,
-        'x-dead-letter-exchange': '',
-        'x-dead-letter-routing-key': queue,
-      },
-    });
-  }
+  await Promise.all(
+    RETRY_DELAYS_MS.map((ttl, index) =>
+      channel.assertQueue(retryQueueName(queue, index + 1), {
+        durable: true,
+        arguments: {
+          'x-queue-type': 'quorum',
+          'x-message-ttl': ttl,
+          'x-dead-letter-exchange': '',
+          'x-dead-letter-routing-key': queue,
+        },
+      }),
+    ),
+  );
 
   const dlq = deadLetterQueueName(queue);
   await channel.assertQueue(dlq, {
