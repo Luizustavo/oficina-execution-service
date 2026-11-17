@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# TypeScript incremental build cache
+*.tsbuildinfo
+
+# Test coverage reports
+coverage/
+
+# Environment variables — never commit real secrets
+.env
+# .env.example should be committed (template with no real values)
+
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS / editor artifacts
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Kubernetes secrets with real values — only the .example template is committed
+k8s/secret.yaml
+
+

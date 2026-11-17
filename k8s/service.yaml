@@ -1,0 +1,14 @@
+# ClusterIP: a porta pública 30080 é do Traefik (ADR-015); ele chega aqui pelo ingress.yaml.
+apiVersion: v1
+kind: Service
+metadata:
+  name: oficina-execution-service
+  namespace: execution
+spec:
+  type: ClusterIP
+  selector:
+    app: oficina-execution-service
+  ports:
+    - port: 80
+      targetPort: 3000
+      protocol: TCP
