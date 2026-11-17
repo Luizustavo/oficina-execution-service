@@ -1,5 +1,7 @@
+import { requiredInProduction } from './required-in-production';
+
 export const jwtConfig = () => ({
   jwt: {
-    secret: process.env.JWT_SECRET || 'dev-jwt-secret',
+    secret: requiredInProduction('JWT_SECRET', 'dev-jwt-secret'),
   },
 });

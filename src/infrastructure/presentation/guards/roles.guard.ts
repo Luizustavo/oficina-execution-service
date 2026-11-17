@@ -8,23 +8,27 @@ import { ROLES_KEY } from '@infrastructure/presentation/decorators/roles.decorat
 import { TokenRole } from '@domain/enums/token-role.enum';
 import { Reflector } from '@nestjs/core';
 
+/** Rota sem `@Roles` aceita qualquer papel da equipe, mas nunca o cliente: ele só entra onde foi listado. */
 @Injectable()
 export class RolesGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const requiredRoles = this.reflector.getAllAndOverride<TokenRole[]>(
-      ROLES_KEY,
-      [context.getHandler(), context.getClass()],
-    );
-    if (!requiredRoles || requiredRoles.length === 0) {
-      return true;
-    }
-
     const { user } = context
       .switchToHttp()
       .getRequest<{ user?: { role: TokenRole } }>();
-    if (!user || !requiredRoles.includes(user.role)) {
+    if (!user) {
+      return true;
+    }
+
+    const requiredRoles = this.reflector.getAllAndOverride<
+      TokenRole[] | undefined
+    >(ROLES_KEY, [context.getHandler(), context.getClass()]);
+    const allowed = requiredRoles?.length
+      ? requiredRoles.includes(user.role)
+      : user.role !== TokenRole.CUSTOMER;
+
+    if (!allowed) {
       throw new ForbiddenException(
         'You do not have permission to access this resource',
       );
