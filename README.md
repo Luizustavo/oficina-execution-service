@@ -1,5 +1,7 @@
 # oficina-execution-service
 
+[![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=Luizustavo_oficina-execution-service&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=Luizustavo_oficina-execution-service) [![Cobertura](https://sonarcloud.io/api/project_badges/measure?project=Luizustavo_oficina-execution-service&metric=coverage)](https://sonarcloud.io/summary/new_code?id=Luizustavo_oficina-execution-service) [![CI](https://github.com/Luizustavo/oficina-execution-service/actions/workflows/ci.yml/badge.svg)](https://github.com/Luizustavo/oficina-execution-service/actions/workflows/ci.yml)
+
 Execution Service da oficina mecânica (Tech Challenge SOAT, Fase 4): fila de execução e acompanhamento do diagnóstico e do reparo das ordens de serviço já pagas.
 
 É um dos três microsserviços do sistema:
@@ -11,6 +13,22 @@ Execution Service da oficina mecânica (Tech Challenge SOAT, Fase 4): fila de ex
 | **`oficina-execution-service`** | Fila e andamento do reparo | MongoDB |
 
 Os serviços conversam só por mensagens no RabbitMQ, seguindo o [contrato de mensagens](https://github.com/Luizustavo/oficina-backend/blob/main/docs/arquitetura/contratos-de-mensagens.md). Nenhum serviço acessa o banco de outro. A escolha do MongoDB está na [ADR-012](https://github.com/Luizustavo/oficina-backend/blob/main/docs/adr/adr-012-mongodb-no-execution-service.md).
+
+## Arquitetura do serviço
+
+```mermaid
+flowchart LR
+    MEC["Mecânico / admin<br/>(via API Gateway)"] -->|"fila · diagnóstico · reparo<br/>conclusão · falha"| CTRL["Controller<br/>/api/execution"]
+    MQIN[("execution.commands")] -->|"job.enqueue · job.cancel"| CONS["Consumidor"]
+
+    CTRL --> UC["Casos de uso<br/>do job"]
+    CONS --> UC
+
+    UC -->|"status + evento pendente<br/>numa escrita só"| MONGO[("MongoDB execution_db<br/>um documento por job<br/>com pendingEvents[]")]
+    MONGO -->|"relay do outbox embutido"| MQOUT[("saga.events")]
+```
+
+**Banco e por quê.** O enunciado pede ao menos um banco NoSQL, e o Execution é o serviço com o dado menos relacional: cada job é **um documento** com os itens, a linha do tempo (`timeline`) e os eventos a publicar (`pendingEvents`), lido e gravado inteiro ([ADR-012](https://github.com/Luizustavo/oficina-backend/blob/main/docs/adr/adr-012-mongodb-no-execution-service.md)). Como uma escrita num único documento é atômica no MongoDB, mudar o status e enfileirar o evento é um só `updateOne`, sem precisar de transação nem de replica set.
 
 ## Rodando localmente
 
@@ -83,6 +101,26 @@ Cada job é um documento da coleção `execution_jobs` (ADR-012). Índices:
 **Outbox dentro do documento.** O MongoDB roda sem replica set, então não há transação entre documentos. O evento a publicar vai em `pendingEvents[]`, no mesmo documento do job: mudar o status e enfileirar o evento é um único `updateOne` (`$set` + `$push`), que é atômico. O relay (a cada segundo) reserva um job por vez (`relayLeaseUntil`, 30 s, para duas réplicas não publicarem o mesmo job ao mesmo tempo), publica os eventos dele em ordem e os remove com `$pull`. Se o broker recusar um evento, ele e os seguintes daquele job ficam para a próxima rodada.
 
 **Concorrência.** Cada documento tem um `version`. Gravar exige que o `version` ainda seja o lido; se outra requisição mudou o job no meio do caminho, a gravação é recusada (HTTP 409 nas rotas, nova tentativa nas mensagens) em vez de sobrescrever a outra mudança.
+
+## Variáveis de ambiente
+
+| Variável | Obrigatória | Para quê |
+|---|---|---|
+| `MONGODB_URL` | sim | MongoDB `execution_db` (no cluster, montada pelo Deployment com a senha do `execution_user`) |
+| `JWT_SECRET` | sim em produção | O mesmo segredo do OS e da Lambda de CPF; sem ele o serviço não sobe com `NODE_ENV=production` |
+| `RABBITMQ_URL` | não | Sem ela a mensageria fica desligada e os eventos ficam pendentes nos jobs |
+| `NEW_RELIC_LICENSE_KEY` | não | Liga a exportação de traces, métricas e logs (OpenTelemetry) |
+
+## Testes e cobertura
+
+| Métrica | Cobertura |
+|---|---|
+| Statements | 98,5% |
+| Branches | 100% |
+| Functions | 98,8% |
+| Lines | 98,4% |
+
+Mínimo de 80%, verificado pelo Jest e pelo Quality Gate do [SonarCloud](https://sonarcloud.io/summary/new_code?id=Luizustavo_oficina-execution-service) a cada PR. Os testes de integração rodam contra MongoDB e RabbitMQ de verdade no CI (outbox embutido, concorrência otimista, relay, consumidores), e os E2E testam as rotas com tokens JWT reais.
 
 ## CI/CD
 
